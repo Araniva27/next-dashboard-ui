@@ -7,6 +7,7 @@ import prisma from "@/lib/prisma";
 import { Class, Subject, Teacher } from "@prisma/client";
 import Image from "next/image";
 import Link from "next/link";
+import { ITEM_PER_PAGE } from "@/lib/settings";
 
 type TeacherList = Teacher & {subjects:Subject[]} & {classes:Class[]}
 
@@ -90,16 +91,27 @@ const renderRow = (item:TeacherList) =>(
     </tr>
 )
 
-const TeacherList = async() => {    
+const TeacherList = async({ searchParams }:{ searchParams:{[key:string]:string | undefined}}) => {    
 
-    const data = await prisma.teacher.findMany({
-        include:{
-            subjects: true,
-            classes: true
-        }
-    });
-    console.log(data);
+    const { page, ...params } = searchParams;
 
+    const p = page ? parseInt(page) :1;
+
+    const [data, count] = await prisma.$transaction([
+        prisma.teacher.findMany({
+            include:{
+                subjects: true,
+                classes: true
+            },
+            take:ITEM_PER_PAGE,
+            skip: ITEM_PER_PAGE * (p-1)
+        }),
+        prisma.teacher.count() 
+    ])
+    
+    
+    // console.log(searchParams);        
+    
     return (
         <div className="bg-white rounded-md p-4 flex-1 m-4 mt-0">
             {/* TOP */}
@@ -130,7 +142,7 @@ const TeacherList = async() => {
                 <Table columns = {columns} renderRow = {renderRow} data={data} />
             </div>
             {/* PAGINATIOn */}            
-            <Pagination />           
+            <Pagination page = {p} count={count} />           
         </div>
     )
 }
